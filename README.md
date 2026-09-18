@@ -148,16 +148,7 @@ The latest version is available for
     - [Arch/AUR](https://aur.archlinux.org/packages/fagram-bin)
     - [Fedora/RPM](https://copr.fedorainfracloud.org/coprs/burhanverse/fagram/)
     - [Ubuntu/DEB](https://github.com/fagramdesktop/fagram-deb)
-    - [NixOS/Nix using Flake](docs/building-nix.md)
-        ```nix
-        {
-        inputs = {
-          fagram.url = "github:fagramdesktop/fadesktop";
-          # ...
-        };
-  
-          # ...
-        }
+    - [NixOS/Nix using Flake](https://github.com/fagramdesktop/nix)
 
 - MacOS
     - [DMG package/GitHub Release](https://github.com/fagramdesktop/fadesktop/releases)
@@ -201,7 +192,7 @@ The latest version is available for
 * [Windows](docs/building-win.md)
 * [macOS](docs/building-mac.md)
 * [GNU/Linux using Docker][linux_build]
-* [NixOS/Nix](docs/building-nix.md)
+* [NixOS/Nix](https://github.com/fagramdesktop/nix)
 
 ## ❤️ Credits
 
@@ -228,6 +219,6 @@ The latest version is available for
 [win_build]: docs/building-win.md
 [mac_build]: docs/building-mac.md
 [linux_build]: docs/building-linux.md
-[nix_build]: docs/building-nix.md
+[nix_build]: https://github.com/fagramdesktop/nix
 [features]: docs/features.md
 [preview_image]: docs/assets/preview.png "Preview of FAgram Deskop"

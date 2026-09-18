@@ -20,13 +20,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Clone nix repository
         uses: actions/checkout@v7
         with:
+          repository: fagramdesktop/nix
           token: ${{ secrets.PAT }}
-          ref: dev
-          sparse-checkout: |
-            nix
+          path: nix
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
@@ -56,29 +55,32 @@ jobs:
             --quiet)
 
           HASH=$(echo "$PREFETCH_JSON" | jq -r '.hash')
-          echo "Hash: $HASH"
-          echo "Rev: $REV"
+          echo "Source Hash: $HASH"
+          echo "Source Rev: $REV"
 
           echo "rev=$REV" >> $GITHUB_OUTPUT
           echo "hash=$HASH" >> $GITHUB_OUTPUT
 
-      - name: Update nix/unwrapped.nix
+      - name: Update pkgs/unwrapped.nix
         run: |
+          VERSION="${{ inputs.release_tag }}"
           REV="${{ steps.prefetch.outputs.rev }}"
           HASH="${{ steps.prefetch.outputs.hash }}"
-          VERSION="${{ inputs.release_tag }}"
 
-          sed -i "s|version = \".*\";|version = \"${VERSION}\";|" nix/unwrapped.nix
-          sed -i "s|rev = \".*\";|rev = \"${REV}\";|" nix/unwrapped.nix
-          sed -i "s|hash = \".*\";|hash = \"${HASH}\";|" nix/unwrapped.nix
+          cd nix
 
-          echo "Updated nix/unwrapped.nix:"
-          cat nix/unwrapped.nix
+          sed -i "s|version = \".*\";|version = \"${VERSION}\";|" pkgs/unwrapped.nix
+          sed -i "s|rev = \".*\";|rev = \"${REV}\";|" pkgs/unwrapped.nix
+          sed -i "s|hash = \".*\";|hash = \"${HASH}\";|" pkgs/unwrapped.nix
+
+          echo "Updated pkgs/unwrapped.nix:"
+          cat pkgs/unwrapped.nix
 
       - name: Commit and push changes
         run: |
-          git config user.name "Burhanverse"
-          git config user.email "contact@burhanverse.eu.org"
-          git add nix/unwrapped.nix
-          git commit -m "nix: update flake to ${{ inputs.release_tag }}"
+          cd nix
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pkgs/unwrapped.nix
+          git commit -m "nix: update fagram-desktop to ${{ inputs.release_tag }}"
           git push
