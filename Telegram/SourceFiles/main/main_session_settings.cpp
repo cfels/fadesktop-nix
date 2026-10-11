@@ -99,6 +99,7 @@ QByteArray SessionSettings::serialize() const {
 		+ sizeof(qint32) // _lastFmUseCustomApiKey
 		+ Serialize::stringSize(_lastFmCustomApiKey.current())
 		+ sizeof(qint32); // _lastFmShowOnProfile
+	size += sizeof(qint32); // _stashHintShowsCount
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -195,6 +196,7 @@ QByteArray SessionSettings::serialize() const {
 			<< qint32(_lastFmUseCustomApiKey.current() ? 1 : 0)
 			<< _lastFmCustomApiKey.current()
 			<< qint32(_lastFmShowOnProfile.current() ? 1 : 0);
+		stream << qint32(_stashHintShowsCount);
 	}
 
 	Ensures(result.size() == size);
@@ -271,6 +273,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	qint32 disableSharingBoxShowsCount = 0;
 	qint32 phoneNumberHidden = 1;
 	std::vector<Data::ReactionId> extraFavoriteReactions;
+	qint32 stashHintShowsCount = 0;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -769,6 +772,9 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> lastFmShowOnProfile;
 	}
+	if (!stream.atEnd()) {
+		stream >> stashHintShowsCount;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for SessionSettings::addFromSerialized()"));
@@ -839,6 +845,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	_lastFmUseCustomApiKey = (lastFmUseCustomApiKey == 1);
 	_lastFmCustomApiKey = lastFmCustomApiKey;
 	_lastFmShowOnProfile = (lastFmShowOnProfile == 1);
+	_stashHintShowsCount = stashHintShowsCount;
 
 	if (version < 2) {
 		app.setLastSeenWarningSeen(appLastSeenWarningSeen == 1);
@@ -998,6 +1005,20 @@ void SessionSettings::incrementDisableSharingBoxShown() {
 
 void SessionSettings::resetDisableSharingBoxShown() {
 	_disableSharingBoxShowsCount = 0;
+}
+
+bool SessionSettings::shouldShowStashHint() const {
+	return _stashHintShowsCount < kStashHintMaxShowsCount;
+}
+
+void SessionSettings::incrementStashHintShown() {
+	if (shouldShowStashHint()) {
+		_stashHintShowsCount++;
+	}
+}
+
+void SessionSettings::markStashHintUsed() {
+	_stashHintShowsCount = kStashHintMaxShowsCount;
 }
 
 std::vector<TimeId> SessionSettings::mutePeriods() const {
