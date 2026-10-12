@@ -40,3 +40,12 @@ You will need **api_id** and **api_hash** to access the Telegram API servers.
 > after running `nix-prefetch-github` make sure to update the the `hash`, `rev` in unwrapped.nix file
 
 That's it enjoy!
+
+### Updating this folk
+
+```sh
+./scripts/update-upstream.sh 9583c5e8fbe845121e1aa9e57543e60b243fa432 --dry-run
+./scripts/update-upstream.sh <target-sha> --exclude <excluded-sha>
+./scripts/update-upstream.sh <target-sha>
+```
+
