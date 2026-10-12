@@ -1,3 +1,6 @@
+> [!WARNING]
+> PLEASE DON'T USE THIS I WILL BE DROPPING SUPPORT FOR THIS FORK SOO PLEASE USE: [fagram/nix](https://github.com/fagramdesktop/nix)
+
 <div align="center">
 
 <img alt="Telegram" width="150x" src="https://github.com/fagramdesktop/fadesktop/blob/dev/Telegram/Resources/art/icon512@2x.png?raw=true">
