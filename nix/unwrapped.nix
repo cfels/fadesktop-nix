@@ -2,6 +2,7 @@
   lib,
   stdenv,
   fetchFromGitHub,
+  callPackage,
   pkg-config,
   cmake,
   ninja,
@@ -29,7 +30,9 @@
   tdlib,
   tg_owt,
   pango,
-  tlottie
+  tlottie,
+  libsysprof-capture,
+  wallet-engine ? callPackage ./wallet-engine.nix { },
 }:
 
 stdenv.mkDerivation (finalAttrs: {
@@ -56,6 +59,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   buildInputs = [
     pango
+    libsysprof-capture
     qtbase
     qtsvg
     lz4
@@ -76,6 +80,7 @@ stdenv.mkDerivation (finalAttrs: {
     kcoreaddons
     hunspell
     tlottie
+    wallet-engine
   ];
 
   dontWrapQtApps = true;
