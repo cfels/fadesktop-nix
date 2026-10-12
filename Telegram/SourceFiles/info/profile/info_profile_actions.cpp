@@ -254,7 +254,7 @@ rpl::producer<CreditsAmount> AddCurrencyAction(
 	const auto button = wrapButton->entity();
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(button, st.rightLabel);
 	const auto icon = state->helper.paletteDependent({ .factory = [=] {
-		return Ui::Earn::IconCurrencyColored(
+		return Ui::Earn::IconCurrencyTwoTone(
 			st.rightLabel.style.font,
 			st.rightLabel.textFg->c);
 	}, .margin = st::channelEarnCurrencyCommonMargins });
@@ -904,9 +904,14 @@ void DetailsFiller::addMainApp(not_null<UserData*> user) {
 		return text;
 	});
 	auto setup = [url](not_null<Ui::FlatLabel*> label) {
-		label->setClickHandlerFilter([=](const auto &...) {
-			UrlClickHandler::Open(url);
-			return false;
+		label->setClickHandlerFilter([=](
+				const ClickHandlerPtr &link,
+				Qt::MouseButton) {
+			if (link && link->url() == url) {
+				UrlClickHandler::Open(url);
+				return false;
+			}
+			return true;
 		});
 	};
 
@@ -1402,7 +1407,7 @@ void ActionsFiller::addAffiliateProgram(not_null<UserData*> user) {
 		bool requested = false;
 		Fn<void()> open;
 	};
-	const auto recipients = std::make_shared<StarRefRecipients>();
+	const auto recipients = inner->lifetime().make_state<StarRefRecipients>();
 	recipients->open = [=] {
 		if (!recipients->list.empty()) {
 			const auto program = user->botInfo->starRefProgram;
@@ -1412,10 +1417,11 @@ void ActionsFiller::addAffiliateProgram(not_null<UserData*> user) {
 				recipients->list));
 		} else if (!recipients->requested) {
 			recipients->requested = true;
-			const auto done = [=](std::vector<not_null<PeerData*>> list) {
+			const auto done = crl::guard(inner, [=](
+					std::vector<not_null<PeerData*>> list) {
 				recipients->list = std::move(list);
 				recipients->open();
-			};
+			});
 			Info::BotStarRef::ResolveRecipients(&user->session(), done);
 		}
 	};

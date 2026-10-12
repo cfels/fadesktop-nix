@@ -1,3 +1,7 @@
+2.6.0 (12.10.26)
+
+- Updated tdesktop to v7.3.1
+
 2.5.9 beta (17.09.26)
 
 - Load local theme file

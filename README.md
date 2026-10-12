@@ -148,16 +148,7 @@ The latest version is available for
     - [Arch/AUR](https://aur.archlinux.org/packages/fagram-bin)
     - [Fedora/RPM](https://copr.fedorainfracloud.org/coprs/burhanverse/fagram/)
     - [Ubuntu/DEB](https://github.com/fagramdesktop/fagram-deb)
-    - [NixOS/Nix using Flake](docs/building-nix.md)
-        ```nix
-        {
-        inputs = {
-          fagram.url = "github:fagramdesktop/fadesktop";
-          # ...
-        };
-  
-          # ...
-        }
+    - [NixOS/Nix using Flake](https://github.com/fagramdesktop/nix)
 
 - MacOS
     - [DMG package/GitHub Release](https://github.com/fagramdesktop/fadesktop/releases)
@@ -195,13 +186,15 @@ The latest version is available for
 * CMake ([New BSD License](https://github.com/Kitware/CMake/blob/master/Copyright.txt))
 * Hunspell ([LGPL](https://github.com/hunspell/hunspell/blob/master/COPYING.LESSER))
 * Ada ([Apache License 2.0](https://github.com/ada-url/ada/blob/main/LICENSE-APACHE))
+* zxcvbn-c ([MIT License](https://github.com/tsyrogit/zxcvbn-c/blob/master/LICENSE.txt))
+* FrequencyWords by Hermit Dave ([Creative Commons Attribution-ShareAlike 4.0](https://creativecommons.org/licenses/by-sa/4.0/))
 
 ## <h2><img src="https://github.com/hikariatama/assets/raw/master/1326-command-window-line-flat.webp" height="50" align="middle"> Build instructions</h2>
 
 * [Windows](docs/building-win.md)
 * [macOS](docs/building-mac.md)
 * [GNU/Linux using Docker][linux_build]
-* [NixOS/Nix](docs/building-nix.md)
+* [NixOS/Nix](https://github.com/fagramdesktop/nix)
 
 ## ❤️ Credits
 
@@ -228,6 +221,6 @@ The latest version is available for
 [win_build]: docs/building-win.md
 [mac_build]: docs/building-mac.md
 [linux_build]: docs/building-linux.md
-[nix_build]: docs/building-nix.md
+[nix_build]: https://github.com/fagramdesktop/nix
 [features]: docs/features.md
 [preview_image]: docs/assets/preview.png "Preview of FAgram Deskop"

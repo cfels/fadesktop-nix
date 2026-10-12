@@ -83,7 +83,7 @@ if not os.path.isdir(os.path.join(thirdPartyDir, keysLoc)):
     pathlib.Path(os.path.join(thirdPartyDir, keysLoc)).mkdir(parents=True, exist_ok=True)
 
 pathPrefixes = [
-    'ThirdParty\\msys64\\mingw64\\bin',
+    'ThirdParty\\msys64\\ucrt64\\bin',
     'ThirdParty\\jom',
     'ThirdParty\\gyp',
 ] if win else [
@@ -118,13 +118,14 @@ elif (winarm):
     })
 elif (mac):
     cpuCount = os.cpu_count() or 1
+    macDeployment = os.environ.get('MACOSX_DEPLOYMENT_TARGET', '10.13')
     environment.update({
         'SPECIAL_TARGET': 'mac',
         'MAKE_THREADS_CNT': os.environ.get('MAKE_THREADS_CNT', '-j' + str(cpuCount)),
         'CMAKE_BUILD_PARALLEL_LEVEL': os.environ.get('CMAKE_BUILD_PARALLEL_LEVEL', str(cpuCount)),
-        'MACOSX_DEPLOYMENT_TARGET': '10.13',
+        'MACOSX_DEPLOYMENT_TARGET': macDeployment,
         'UNGUARDED': '-Werror=unguarded-availability-new',
-        'MIN_VER': '-mmacosx-version-min=10.13',
+        'MIN_VER': '-mmacosx-version-min=' + macDeployment,
         'CMAKE_GENERATOR': 'Ninja',
     })
 
@@ -460,8 +461,9 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout c2cc44fca4a8d0e20d1ef0f40884d717c750f0a4
+    git checkout aec474953ff7ee9b6e4cd9b8658288ea86d124f3
 mac:
+    sed -i '' "s/10.13/$MACOSX_DEPLOYMENT_TARGET/g" macos_meson_*.txt
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
     cd qt6_highsierra
     git checkout 7387476bb3b7200d3b044015696cb3c28f78593c
@@ -473,18 +475,18 @@ win:
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
 
-    powershell -Command "iwr -OutFile ./msys64.exe https://github.com/msys2/msys2-installer/releases/download/2025-08-30/msys2-base-x86_64-20250830.sfx.exe"
+    powershell -Command "iwr -OutFile ./msys64.exe https://github.com/msys2/msys2-installer/releases/download/2026-09-27/msys2-base-x86_64-20260927.sfx.exe"
     msys64.exe
     del msys64.exe
 
     bash -c "pacman-key --init; pacman-key --populate; pacman -Syu --noconfirm"
     pacman -Syu --noconfirm ^
         make ^
-        mingw-w64-x86_64-diffutils ^
-        mingw-w64-x86_64-gperf ^
-        mingw-w64-x86_64-nasm ^
-        mingw-w64-x86_64-perl ^
-        mingw-w64-x86_64-pkgconf
+        mingw-w64-ucrt-x86_64-diffutils ^
+        mingw-w64-ucrt-x86_64-gperf ^
+        mingw-w64-ucrt-x86_64-nasm ^
+        mingw-w64-ucrt-x86_64-perl ^
+        mingw-w64-ucrt-x86_64-pkgconf
 """, 'ThirdParty')
 
 stage('python', """
@@ -558,8 +560,9 @@ release:
 
 stage('xz', """
 !win:
-    git clone -b v5.4.5 https://github.com/tukaani-project/xz.git
+    git clone -b v5.4 https://github.com/tukaani-project/xz.git
     cd xz
+    git checkout 05af863c3166cddeb4ab935829b14e995c8346b4
     sed -i '' '\\@check_symbol_exists(futimens "sys/types.h;sys/stat.h" HAVE_FUTIMENS)@d' CMakeLists.txt
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
         -D CMAKE_OSX_ARCHITECTURES="arm64" \\
@@ -624,7 +627,7 @@ mac:
 """)
 
 stage('openssl3', """
-    git clone -b openssl-3.2.1 https://github.com/openssl/openssl openssl3
+    git clone -b openssl-3.5.9 https://github.com/openssl/openssl openssl3
     cd openssl3
 win32:
     perl Configure no-shared no-tests debug-VC-WIN32 /FS
@@ -875,38 +878,6 @@ mac:
     cmake --install . --config MinSizeRel
 """)
 
-stage('libde265', """
-    git clone -b v1.1.1 https://github.com/strukturag/libde265.git
-    cd libde265
-win:
-    cmake . ^
-        -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
-        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
-        -DCMAKE_POLICY_DEFAULT_CMP0091=NEW ^
-        -DCMAKE_C_FLAGS="/DLIBDE265_STATIC_BUILD" ^
-        -DCMAKE_CXX_FLAGS="/DLIBDE265_STATIC_BUILD" ^
-        -DENABLE_SDL=OFF ^
-        -DBUILD_SHARED_LIBS=OFF ^
-        -DENABLE_DECODER=OFF ^
-        -DENABLE_ENCODER=OFF
-    cmake --build . --config Debug
-    cmake --install . --config Debug
-release:
-    cmake --build . --config Release
-    cmake --install . --config Release
-mac:
-    cmake . \\
-        -D CMAKE_OSX_ARCHITECTURES="arm64" \\
-        -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
-        -D DISABLE_SSE=ON \\
-        -D ENABLE_SDL=OFF \\
-        -D BUILD_SHARED_LIBS=OFF \\
-        -D ENABLE_DECODER=ON \\
-        -D ENABLE_ENCODER=OFF
-    cmake --build . --config MinSizeRel
-    cmake --install . --config MinSizeRel
-""")
-
 stage('libwebp', """
     git clone -b v1.6.0 https://github.com/webmproject/libwebp.git
     cd libwebp
@@ -938,66 +909,6 @@ mac:
     }
     buildOneArch arm64 build.arm64
     cmake --install build.arm64
-""")
-
-stage('libheif', """
-    git clone -b v1.23.1 https://github.com/strukturag/libheif.git
-    cd libheif
-win:
-    %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' libheif/CMakeLists.txt
-    %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/HAVE_VISIBILITY/LIBHEIF_STATIC_BUILD/g' libheif/CMakeLists.txt
-    %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' heifio/CMakeLists.txt
-    %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/HAVE_VISIBILITY/LIBHEIF_STATIC_BUILD/g' heifio/CMakeLists.txt
-    cmake . ^
-        -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
-        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
-        -DBUILD_SHARED_LIBS=OFF ^
-        -DBUILD_DOCUMENTATION=OFF ^
-        -DBUILD_TESTING=OFF ^
-        -DENABLE_PLUGIN_LOADING=OFF ^
-        -DWITH_LIBDE265=ON ^
-        -DWITH_X264=OFF ^
-        -DWITH_OpenH264_DECODER=OFF ^
-        -DWITH_SvtEnc=OFF ^
-        -DWITH_SvtEnc_PLUGIN=OFF ^
-        -DWITH_RAV1E=OFF ^
-        -DWITH_RAV1E_PLUGIN=OFF ^
-        -DWITH_LIBSHARPYUV=OFF ^
-        -DCMAKE_DISABLE_FIND_PACKAGE_TIFF=TRUE ^
-        -DCMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE ^
-        -DCMAKE_DISABLE_FIND_PACKAGE_PNG=TRUE ^
-        -DWITH_EXAMPLES=OFF
-    cmake --build . --config Debug
-    cmake --install . --config Debug
-release:
-    cmake --build . --config Release
-    cmake --install . --config Release
-mac:
-    cmake . \\
-        -D CMAKE_OSX_ARCHITECTURES="arm64" \\
-        -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
-        -D BUILD_SHARED_LIBS=OFF \\
-        -D BUILD_DOCUMENTATION=OFF \\
-        -D BUILD_TESTING=OFF \\
-        -D ENABLE_PLUGIN_LOADING=OFF \\
-        -D WITH_AOM_ENCODER=OFF \\
-        -D WITH_AOM_DECODER=OFF \\
-        -D WITH_X265=OFF \\
-        -D WITH_X264=OFF \\
-        -D WITH_OpenH264_DECODER=OFF \\
-        -D WITH_SvtEnc=OFF \\
-        -D WITH_RAV1E=OFF \\
-        -D WITH_DAV1D=ON \\
-        -D WITH_LIBDE265=ON \\
-        -D LIBDE265_INCLUDE_DIR=$USED_PREFIX/include/ \\
-        -D LIBDE265_LIBRARY=$USED_PREFIX/lib/libde265.a \\
-        -D WITH_LIBSHARPYUV=OFF \\
-        -D CMAKE_DISABLE_FIND_PACKAGE_TIFF=TRUE \\
-        -D CMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE \\
-        -D CMAKE_DISABLE_FIND_PACKAGE_PNG=TRUE \\
-        -D WITH_EXAMPLES=OFF
-    cmake --build . --config MinSizeRel
-    cmake --install . --config MinSizeRel
 """)
 
 stage('libjxl', """
@@ -1124,7 +1035,7 @@ stage('regex', """
 """)
 
 stage('ffmpeg', """
-    git clone -b n6.1.6 https://github.com/FFmpeg/FFmpeg.git ffmpeg
+    git clone -b n8.1.3 https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
 win:
 depends:patches/ffmpeg.patch
@@ -1277,6 +1188,69 @@ mac:
     make install
 """)
 
+stage('libheif', """
+depends:patches/libheif.patch
+    git clone -b v1.23.5 https://github.com/strukturag/libheif.git
+    cd libheif
+    git apply ../patches/libheif.patch
+win:
+    %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/HAVE_VISIBILITY/LIBHEIF_STATIC_BUILD/g' libheif/CMakeLists.txt
+    %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/HAVE_VISIBILITY/LIBHEIF_STATIC_BUILD/g' heifio/CMakeLists.txt
+    cmake . ^
+        -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
+        -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
+        -DBUILD_SHARED_LIBS=OFF ^
+        -DBUILD_DOCUMENTATION=OFF ^
+        -DBUILD_TESTING=OFF ^
+        -DENABLE_PLUGIN_LOADING=OFF ^
+        -DWITH_LIBDE265=OFF ^
+        -DWITH_FFMPEG_DECODER=ON ^
+        -DFFMPEG_ROOT=%LIBS_DIR%/local ^
+        -DWITH_X264=OFF ^
+        -DWITH_OpenH264_DECODER=OFF ^
+        -DWITH_SvtEnc=OFF ^
+        -DWITH_SvtEnc_PLUGIN=OFF ^
+        -DWITH_RAV1E=OFF ^
+        -DWITH_RAV1E_PLUGIN=OFF ^
+        -DWITH_LIBSHARPYUV=OFF ^
+        -DCMAKE_DISABLE_FIND_PACKAGE_TIFF=TRUE ^
+        -DCMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE ^
+        -DCMAKE_DISABLE_FIND_PACKAGE_PNG=TRUE ^
+        -DWITH_EXAMPLES=OFF
+    cmake --build . --config Debug
+    cmake --install . --config Debug
+release:
+    cmake --build . --config Release
+    cmake --install . --config Release
+mac:
+    cmake . \\
+        -D CMAKE_OSX_ARCHITECTURES="arm64" \\
+        -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
+        -D BUILD_SHARED_LIBS=OFF \\
+        -D BUILD_DOCUMENTATION=OFF \\
+        -D BUILD_TESTING=OFF \\
+        -D ENABLE_PLUGIN_LOADING=OFF \\
+        -D WITH_GDK_PIXBUF=OFF \\
+        -D WITH_AOM_ENCODER=OFF \\
+        -D WITH_AOM_DECODER=OFF \\
+        -D WITH_X265=OFF \\
+        -D WITH_X264=OFF \\
+        -D WITH_OpenH264_DECODER=OFF \\
+        -D WITH_SvtEnc=OFF \\
+        -D WITH_RAV1E=OFF \\
+        -D WITH_DAV1D=OFF \\
+        -D WITH_LIBDE265=OFF \\
+        -D WITH_FFMPEG_DECODER=ON \\
+        -D FFMPEG_ROOT=$USED_PREFIX \\
+        -D WITH_LIBSHARPYUV=OFF \\
+        -D CMAKE_DISABLE_FIND_PACKAGE_TIFF=TRUE \\
+        -D CMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE \\
+        -D CMAKE_DISABLE_FIND_PACKAGE_PNG=TRUE \\
+        -D WITH_EXAMPLES=OFF
+    cmake --build . --config MinSizeRel
+    cmake --install . --config MinSizeRel
+""")
+
 stage('openal-soft', """
     git clone https://github.com/telegramdesktop/openal-soft.git
     cd openal-soft
@@ -1405,7 +1379,7 @@ if qt < '6':
 win:
     git clone https://github.com/desktop-app/tg_angle.git
     cd tg_angle
-    git checkout 48bc60bdb1
+    git checkout f62ce7f6efe014cf1f7d95830c505fd2ac1c49e0
     cmake -B out ^
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib
@@ -1520,6 +1494,7 @@ mac:
         -no-feature-cxx17_filesystem \
         -platform macx-clang -- \
         -DCMAKE_OSX_ARCHITECTURES="arm64" \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET="$MACOSX_DEPLOYMENT_TARGET" \
         -DCMAKE_PREFIX_PATH="$USED_PREFIX" \
         -DQT_NO_HANDLE_APPLE_SINGLE_ARCH_CROSS_COMPILING=ON \
         -DQT_SYNC_HEADERS_AT_CONFIGURE_TIME=ON
@@ -1601,7 +1576,7 @@ win:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 89df288dd6ba5b2ec95b3c5eaf1e7e0c3a870fc4
+    git checkout d1cf250ea73de26c4c1f0a3c8173eb2648efbb04
     git submodule update --init --recursive
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg
@@ -1663,7 +1638,7 @@ release:
 """)
 
 stage('ada', """
-    git clone -b v3.2.4 https://github.com/ada-url/ada.git
+    git clone -b v3.2.9 https://github.com/ada-url/ada.git
     cd ada
 win:
     cmake -B out . ^
@@ -1761,10 +1736,53 @@ release:
     buildTd Release
 """)
 
+# Neither this stage nor wallet-engine below builds anything any more: they
+# are the sources tdesktop_rust compiles. The CI prune used to strip both
+# down to their headers while their stage keys stayed valid, leaving a cache
+# that skips them and cannot rebuild tdesktop_rust. The version re-clones
+# them once over such a cache. The revisions are named here because the
+# umbrella stage has to see them, see there.
+tlottieRevision = '92df98dc20'
+walletEngineRevision = 'e59e0d89d7ee90c388bf36e3334c5b276f396697'
 stage('tlottie', """
+version: 2
     git clone https://github.com/dkaraush/tlottie.git
     cd tlottie
-    git checkout 4b940c7942
+    git checkout """ + tlottieRevision + """
+""")
+
+stage('wallet-engine', """
+version: 2
+depends:patches/wallet-engine.patch
+win:
+    SET "GIT_LFS_SKIP_SMUDGE=1"
+mac:
+    export GIT_LFS_SKIP_SMUDGE=1
+win_mac:
+    git clone https://github.com/i582/wallet-engine.git
+    cd wallet-engine
+    git checkout """ + walletEngineRevision + """
+    git apply ../patches/wallet-engine.patch
+""")
+
+# Every Rust library is built into one archive. A Rust staticlib carries its
+# own copy of the standard library, so building them separately defines the
+# runtime symbols that must stay global twice, which the linker refuses, and
+# duplicates the rest of std in the binary. The umbrella crate is generated
+# here rather than kept in a repository of its own: it is two dependency lines
+# and two re-exports, and the pinned revisions stay visible in the stages
+# above. The profile lives on the command line because a dependency's own
+# [profile] is ignored by cargo; lto and panic cannot be set per package, so
+# they are stated once, while opt-level keeps the level each library asked for.
+# The commands below never name the pinned revisions, they only point cargo
+# at the two checkouts, so nothing in this stage's key would change when one
+# of them is repinned and a warm cache would keep the previous binding. The
+# revisions ride in the version for that, and the counter in front of them
+# flushes a cache whose generated source the CI prune had already deleted.
+# The wallet-engine patch rewrites those sources, so it is a dependency here.
+stage('tdesktop_rust', """
+version: 2.""" + tlottieRevision + '.' + walletEngineRevision + """
+depends:patches/wallet-engine.patch
 win:
     SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
     SET "CARGO_HOME=%THIRDPARTY_DIR%\\rust\\cargo"
@@ -1782,27 +1800,56 @@ winarm:
     SET "RUST_TARGET=aarch64-pc-windows-msvc"
     SET "RUST_BUILD_STD="
 win:
-    cargo rustc --lib --release --locked ^
-        --features c-api --crate-type staticlib ^
+    cargo new --lib --vcs none tdesktop_rust
+    cd tdesktop_rust
+    echo pub use ::tlottie;> src\\lib.rs
+    echo pub use ::wallet_engine;>> src\\lib.rs
+    cargo add --path ..\\tlottie --features c-api
+    cargo add --path ..\\wallet-engine
+    cargo rustc --lib --release ^
+        --crate-type staticlib --crate-type cdylib ^
         %RUST_BUILD_STD% ^
         --target %RUST_TARGET% ^
+        --config "profile.release.opt-level='z'" ^
+        --config "profile.release.lto='thin'" ^
+        --config "profile.release.codegen-units=1" ^
+        --config "profile.release.panic='unwind'" ^
+        --config "profile.release.package.tlottie.opt-level=3" ^
         --config "target.%RUST_TARGET%.rustflags=['-C','target-feature=+crt-static']" ^
         -- --print native-static-libs
-    mkdir out\\lib out\\include
-    copy target\\%RUST_TARGET%\\release\\tlottie.lib out\\lib\\tlottie.lib
-    copy include\\tlottie.h out\\include\\tlottie.h
+    mkdir out\\lib out\\include out\\include\\tlottie out\\include\\wallet_engine out\\src out\\src\\wallet_engine
+    copy target\\%RUST_TARGET%\\release\\tdesktop_rust.lib out\\lib\\tdesktop_rust.lib
+    copy ..\\tlottie\\include\\tlottie.h out\\include\\tlottie\\tlottie.h
+    cargo run --manifest-path ..\\wallet-engine\\bindgen\\cpp\\bindgen\\Cargo.toml --locked -- ^
+        --library --out-dir out\\include\\wallet_engine ^
+        target\\%RUST_TARGET%\\release\\tdesktop_rust.dll
+    move out\\include\\wallet_engine\\wallet_engine.cpp out\\src\\wallet_engine\\wallet_engine.cpp
 mac:
     export RUSTUP_HOME=$THIRDPARTY_DIR/rust/rustup
     export CARGO_HOME=$THIRDPARTY_DIR/rust/cargo
     export RUSTUP_TOOLCHAIN=""" + rustToolchain + """
     export PATH=$CARGO_HOME/bin:$PATH
-    cargo rustc --lib --release --locked \\
-        --features c-api --crate-type staticlib \\
+    cargo new --lib --vcs none tdesktop_rust
+    cd tdesktop_rust
+    printf 'pub use ::tlottie;\\npub use ::wallet_engine;\\n' > src/lib.rs
+    cargo add --path ../tlottie --features c-api
+    cargo add --path ../wallet-engine
+    cargo rustc --lib --release \\
+        --crate-type staticlib --crate-type cdylib \\
         --target aarch64-apple-darwin \\
+        --config "profile.release.opt-level='z'" \\
+        --config "profile.release.lto='thin'" \\
+        --config "profile.release.codegen-units=1" \\
+        --config "profile.release.panic='unwind'" \\
+        --config "profile.release.package.tlottie.opt-level=3" \\
         -- --print native-static-libs
-    mkdir -p $USED_PREFIX/lib $USED_PREFIX/include/tlottie
-    cp target/aarch64-apple-darwin/release/libtlottie.a $USED_PREFIX/lib/libtlottie.a
-    cp include/tlottie.h $USED_PREFIX/include/tlottie/tlottie.h
+    mkdir -p $USED_PREFIX/lib $USED_PREFIX/include/tlottie $USED_PREFIX/include/wallet_engine $USED_PREFIX/src/wallet_engine
+    cp target/aarch64-apple-darwin/release/libtdesktop_rust.a $USED_PREFIX/lib/libtdesktop_rust.a
+    cp ../tlottie/include/tlottie.h $USED_PREFIX/include/tlottie/tlottie.h
+    cargo run --manifest-path ../wallet-engine/bindgen/cpp/bindgen/Cargo.toml --locked -- \\
+        --library --out-dir $USED_PREFIX/include/wallet_engine \\
+        target/aarch64-apple-darwin/release/libtdesktop_rust.dylib
+    mv $USED_PREFIX/include/wallet_engine/wallet_engine.cpp $USED_PREFIX/src/wallet_engine/wallet_engine.cpp
 """)
 
 if win:

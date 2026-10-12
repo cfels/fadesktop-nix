@@ -270,6 +270,9 @@ private:
 		int offset = 0;
 		bool allLoaded = false;
 		bool wasLoading = false;
+		bool groupByRole = false;
+		bool adminsPreloaded = false;
+		bool wasPreloadingAdmins = false;
 		ParticipantsAdditionalData additional;
 		rpl::lifetime lifetime;
 	};
